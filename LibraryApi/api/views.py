@@ -1,24 +1,44 @@
 from django.shortcuts import render
-from django.views.decorators.csrf import csrf_exempt
 from .models import Book
 from .serializers import BookSerializer
 from rest_framework.parsers import JSONParser
 from django.http import HttpResponse, JsonResponse
-from rest_framework.decorators import api_view
+
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.views import TokenObtainPairView
+
+from rest_framework.decorators import api_view,permission_classes
+from rest_framework.permissions import IsAuthenticated
+
 from rest_framework.response import Response
 from rest_framework import status
 
 # Create your views here.
 
+class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+
+        # Add custom claims
+        token['username'] = user.username
+        # ...
+
+        return token
+
+class MyTokenObtainPairView(TokenObtainPairView):
+    serializer_class = MyTokenObtainPairSerializer
+
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def bookshelf(request):
     book =Book.objects.all()
     serializer = BookSerializer(book,many=True)
     return Response(serializer.data)
 
-@csrf_exempt
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def book_create(request):
     serializer = BookSerializer(data=request.data)
     if serializer.is_valid():
@@ -46,12 +66,11 @@ def book_update(request,title):
         return HttpResponse(status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'PUT':
-        data = JSONParser().parse(request)
-        serializer = BookSerializer(book, data=data)
+        serializer = BookSerializer(book, data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return JsonResponse(serializer.data)
-        return JsonResponse(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['DELETE'])
 def book_delete(request,title):
