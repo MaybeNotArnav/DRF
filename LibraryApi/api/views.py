@@ -33,9 +33,9 @@ def wait (request):
 def confirmation(request,token):
     token_del = Token.objects.get(key=token)
     user_id = token_del.user_id
-    print(user_id)
+    # print(user_id)
     user = User.objects.get(id=user_id)
-    print(user)
+    # print(user)
     user.is_active=True
     token_del.delete()
     user.save()
